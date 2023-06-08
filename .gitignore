@@ -1,0 +1,15 @@
+launch.json
+debug
+.idea
+*.bat
+/CI/vault-test.yaml
+/CI/vault-dev.yaml
+/envvars
+/pkg/token
+google_creds_*
+result.csv
+*.exe
+/output
+cmd/worker/worker
+cmd/worker/envvars.txt
+.DS_Store
