@@ -7,6 +7,12 @@ type gitToken struct {
 	Token string `json:"token"`
 }
 
+// k8sToken holds kubernetes authentication information to be formatted to a bytes buffer
+type k8sToken struct {
+	JWT  string `json:"jwt"`
+	Role string `json:"role"`
+}
+
 type AuthenticationResponse interface {
 	ClientToken() string
 	LeaseDurationSeconds() int

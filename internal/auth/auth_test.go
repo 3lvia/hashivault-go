@@ -24,6 +24,24 @@ func TestAuthenticate_github(t *testing.T) {
 	}
 }
 
+func TestAuthenticate_k8s(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, ghVaultResponse)
+	}))
+	defer testServer.Close()
+
+	servicePath := "MY_SERVICE_PATH"
+	role := "MY_ROLE"
+	tokenResponse, err := Authenticate(testServer.URL, WithK8s(servicePath, role), WithClient(testServer.Client()))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if tokenResponse.ClientToken() != "xxx" {
+		t.Errorf("unexpected token: %s", tokenResponse.ClientToken())
+	}
+}
+
 const ghVaultResponse = `{
     "request_id": "d645ddd7-3b2e-f28b-0138-512d5ff301a4",
     "lease_id": "",

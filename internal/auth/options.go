@@ -6,6 +6,9 @@ type optionsCollector struct {
 	client *http.Client
 
 	gitHubToken string
+
+	k8sServicePath string
+	k8sRole        string
 }
 
 // Option expl
@@ -22,5 +25,13 @@ func WithClient(client *http.Client) Option {
 func WithGitHubToken(token string) Option {
 	return func(o *optionsCollector) {
 		o.gitHubToken = token
+	}
+}
+
+// WithK8s sets the Kubernetes service path and role to use for authentication
+func WithK8s(servicePath, role string) Option {
+	return func(o *optionsCollector) {
+		o.k8sServicePath = servicePath
+		o.k8sRole = role
 	}
 }
