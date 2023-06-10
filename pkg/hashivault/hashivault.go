@@ -1,18 +1,34 @@
 package hashivault
 
-import "github.com/3lvia/hashivault-go/internal/auth"
+import (
+	"net/http"
+	"os"
+)
 
-func New() (SecretsManager, error) {
-	v := &vault{}
-
-	ghToken := ""
-	addr := "https://vault.dev-elvia.io"
-
-	token, err := auth.Authenticate(addr, auth.WithGitHubToken(ghToken))
-	if err != nil {
-		return nil, err
+func New(opts ...Option) (SecretsManager, <-chan error, error) {
+	collector := &optionsCollector{}
+	for _, opt := range opts {
+		opt(collector)
 	}
-	_ = token
 
-	return v, nil
+	client := collector.client
+	if client == nil {
+		client = &http.Client{}
+	}
+
+	vaultAddress, gitHubToken, k8sMountPath, k8sRole := initValues()
+	errChan := make(chan error)
+
+	tokenGetter := startTokenJob(vaultAddress, gitHubToken, k8sMountPath, k8sRole, errChan, client)
+
+	m := newManager(vaultAddress, tokenGetter, errChan)
+	return m, errChan, nil
+}
+
+func initValues() (vaultAddress, gitHubToken, k8sMountPath, k8sRole string) {
+	vaultAddress = os.Getenv("VAULT_ADDR")
+	gitHubToken = os.Getenv("GITHUB_TOKEN")
+	k8sMountPath = os.Getenv("MOUNT_PATH")
+	k8sRole = os.Getenv("ROLE")
+	return
 }

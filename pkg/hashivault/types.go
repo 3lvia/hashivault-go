@@ -2,18 +2,11 @@ package hashivault
 
 // SecretsManager represents a service that is able to provide clients with a secret stored at a path.
 type SecretsManager interface {
-	GetSecret(path string) (Secret, error)
+	GetSecret(path string) (EvergreenSecretsFunc, error)
 	SetDefaultGoogleCredentials(path, key string) error
 }
 
-type Secret interface {
-	GetRequestID() string
-	GetLeaseID() string
-	IsRenewable() bool
-	GetLeaseDuration() int
-	GetData() map[string]interface{}
-	GetMetadata() map[string]interface{}
-}
+type EvergreenSecretsFunc func() map[string]any
 
 // secret contains all data and metadata from a Vault secret
 type secret struct {
