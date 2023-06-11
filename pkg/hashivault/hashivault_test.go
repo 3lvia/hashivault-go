@@ -3,35 +3,27 @@ package hashivault
 import (
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 )
 
 func TestNew_static(t *testing.T) {
-	loginCount := 0
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//
-		p := r.URL.String()
-		switch p {
-		case "/v1/auth/github/login":
-			loginCount++
-			w.WriteHeader(http.StatusOK)
-			tokenResponse := fmt.Sprintf(ghVaultResponseTemplate, fmt.Sprintf("token-%d", loginCount))
-			fmt.Fprintln(w, tokenResponse)
-		case "/v1/kunde/kv/data/appinsights/kunde":
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, jsonStaticSecret)
-		}
-	}))
-	defer testServer.Close()
+	url, client, closer := startTestServer(t)
+	defer closer()
+
+	addHandler("/v1/kunde/kv/data/appinsights/kunde", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, jsonStaticSecret)
+	})
 
 	gitHubToken := "my-github-token"
-	initEnv(testServer.URL, gitHubToken)
+	initEnv(url, gitHubToken)
 
-	sm, errChan, err := New()
-	NoErr(t, err)
+	sm, errChan, err := New(WithClient(client))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	go func(ec <-chan error) {
 		e := <-ec
@@ -54,31 +46,24 @@ func TestNew_static(t *testing.T) {
 }
 
 func TestNew_dynamic(t *testing.T) {
-	loginCount := 0
+	url, client, closer := startTestServer(t)
+	defer closer()
+
 	secretCount := 0
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//
-		p := r.URL.String()
-		switch p {
-		case "/v1/auth/github/login":
-			loginCount++
-			w.WriteHeader(http.StatusOK)
-			tokenResponse := fmt.Sprintf(ghVaultResponseTemplate, fmt.Sprintf("token-%d", loginCount))
-			fmt.Fprintln(w, tokenResponse)
-		case "/v1/kunde/kv/data/appinsights/kunde":
-			secretCount++
-			js := fmt.Sprintf(jsonDynamicSecret, fmt.Sprintf("secret-%d", secretCount))
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, js)
-		}
-	}))
-	defer testServer.Close()
+	addHandler("/v1/kunde/kv/data/appinsights/kunde2", func(w http.ResponseWriter, r *http.Request) {
+		secretCount++
+		js := fmt.Sprintf(jsonDynamicSecret, fmt.Sprintf("secret-%d", secretCount))
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, js)
+	})
 
 	gitHubToken := "my-github-token"
-	initEnv(testServer.URL, gitHubToken)
+	initEnv(url, gitHubToken)
 
-	sm, errChan, err := New()
-	NoErr(t, err)
+	sm, errChan, err := New(WithClient(client))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	go func(ec <-chan error) {
 		e := <-ec
@@ -87,7 +72,7 @@ func TestNew_dynamic(t *testing.T) {
 		}
 	}(errChan)
 
-	eg, err := sm.GetSecret("kunde/kv/data/appinsights/kunde")
+	eg, err := sm.GetSecret("kunde/kv/data/appinsights/kunde2")
 	NoErr(t, err)
 
 	sec := eg()

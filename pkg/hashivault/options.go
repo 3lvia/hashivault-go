@@ -8,8 +8,8 @@ type optionsCollector struct {
 
 type Option func(*optionsCollector)
 
-func WithHTTPClient(client *http.Client) Option {
-	return func(collector *optionsCollector) {
-		collector.client = client
+func WithClient(client *http.Client) Option {
+	return func(o *optionsCollector) {
+		o.client = client
 	}
 }

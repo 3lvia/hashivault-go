@@ -4,7 +4,6 @@ import (
 	"github.com/3lvia/hashivault-go/internal/auth"
 	"net/http"
 	"sync"
-	"time"
 )
 
 type tokenGetterFunc func() string
@@ -18,7 +17,7 @@ func startTokenJob(vaultAddress, gitHubToken, k8sMountPath, k8sRole string, errC
 		k8sRole:      k8sRole,
 		client:       client,
 	}
-	j.start(errChan)
+	go j.start(errChan)
 	return j.token
 }
 
@@ -33,7 +32,6 @@ type tokenJob struct {
 }
 
 func (j *tokenJob) start(errChannel chan<- error) {
-	// get token once first before starting the goroutine
 	authResponse, err := j.authenticate()
 	if err != nil {
 		errChannel <- err
@@ -46,21 +44,20 @@ func (j *tokenJob) start(errChannel chan<- error) {
 		return
 	}
 
-	go func(after <-chan time.Time) {
-		for {
-			<-after
-			j.mux.Lock()
-			ar, err := j.authenticate()
-			if err != nil {
-				errChannel <- err
-				j.mux.Unlock()
-				continue
-			}
-			j.currentToken = ar.ClientToken()
-			after = ar.After()
+	after := authResponse.After()
+	for {
+		<-after
+		j.mux.Lock()
+		ar, err := j.authenticate()
+		if err != nil {
+			errChannel <- err
 			j.mux.Unlock()
+			continue
 		}
-	}(authResponse.After())
+		j.currentToken = ar.ClientToken()
+		after = ar.After()
+		j.mux.Unlock()
+	}
 }
 
 func (j *tokenJob) token() string {

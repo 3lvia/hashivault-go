@@ -1,10 +1,12 @@
 package hashivault
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 func newManager(vaultAddress string, tokenGetter tokenGetterFunc, errChan chan<- error) *manager {
@@ -30,15 +32,42 @@ func (m *manager) GetSecret(path string) (EvergreenSecretsFunc, error) {
 	}
 
 	if !sec.Renewable {
-		ss := &staticSecret{sec: sec}
-		return ss.get, nil
+		return sec.GetData, nil
 	}
 
-	es := newEvergreen(path, m.vaultAddress, sec, m.client, m.errChan)
+	es := newEvergreen(path, m.vaultAddress, sec, m.tokenGetter, m.client, m.errChan)
 	return es.get, nil
 }
 
 func (m *manager) SetDefaultGoogleCredentials(path, key string) error {
+	s, err := m.GetSecret(path)
+	if err != nil {
+		return err
+	}
+
+	sm := s()
+	if _, ok := sm[key]; !ok {
+		return fmt.Errorf("key %s not found in secret", key)
+	}
+	var encoded string
+	var ok bool
+	if encoded, ok = sm[key].(string); !ok {
+		return fmt.Errorf("key %s is not a string", key)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return err
+	}
+
+	fn := "google-credentials.json"
+	if err := os.WriteFile(fn, decoded, 0644); err != nil {
+		return err
+	}
+
+	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", fn); err != nil {
+		return err
+	}
+
 	return nil
 }
 

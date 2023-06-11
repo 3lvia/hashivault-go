@@ -6,13 +6,14 @@ import (
 	"time"
 )
 
-func newEvergreen(path, vaultAddress string, sec *secret, client *http.Client, errChan chan<- error) *evergreenSecret {
+func newEvergreen(path, vaultAddress string, sec *secret, tokenGetter tokenGetterFunc, client *http.Client, errChan chan<- error) *evergreenSecret {
 	eg := &evergreenSecret{
 		path:         path,
 		sec:          sec,
 		mux:          &sync.Mutex{},
 		client:       client,
 		vaultAddress: vaultAddress,
+		tokenGetter:  tokenGetter,
 	}
 
 	go eg.start(errChan)
@@ -26,6 +27,7 @@ type evergreenSecret struct {
 	client       *http.Client
 	sec          *secret
 	mux          *sync.Mutex
+	tokenGetter  tokenGetterFunc
 }
 
 func (e *evergreenSecret) get() map[string]any {
@@ -38,7 +40,7 @@ func (e *evergreenSecret) start(errChan chan<- error) {
 	for {
 		<-time.After(time.Duration(e.sec.LeaseDuration) * time.Second)
 		e.mux.Lock()
-		sec, err := get(e.path, e.vaultAddress, "", e.client)
+		sec, err := get(e.path, e.vaultAddress, e.tokenGetter(), e.client)
 		if err != nil {
 			errChan <- err
 			e.mux.Unlock()
