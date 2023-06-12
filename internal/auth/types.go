@@ -13,10 +13,19 @@ type k8sToken struct {
 	Role string `json:"role"`
 }
 
+// AuthenticationResponse is the response from the Vault server after authentication.
 type AuthenticationResponse interface {
+	// ClientToken is the token to use when authenticating with Vault when fetching secrets.
 	ClientToken() string
+
+	// LeaseDurationSeconds is the duration of the token in seconds. This is the verbatim value returned by Vault.
 	LeaseDurationSeconds() int
+
+	// Renewable is true if the token is renewable.
 	Renewable() bool
+
+	// After returns a channel that fire when the token is about to expire. The channel will fire when the token has
+	// 30 seconds left to live.
 	After() <-chan time.Time
 }
 
@@ -44,7 +53,16 @@ func (a authenticationResponse) Renewable() bool {
 }
 
 func (a authenticationResponse) After() <-chan time.Time {
-	return time.After(time.Duration(a.Auth.LeaseDuration) * time.Second)
+	secs := a.Auth.LeaseDuration
+	if secs == 0 {
+		secs = 3600 * 24 * 365 // 1 year
+	}
+	if secs >= 60 {
+		secs -= 30 // 30 seconds leeway
+	} else {
+		secs = 1 // 1 second leeway
+	}
+	return time.After(time.Duration(secs) * time.Second)
 }
 
 type authenticationData struct {
