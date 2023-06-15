@@ -3,6 +3,7 @@ package hashivault
 import (
 	"fmt"
 	"net/http"
+	"sync"
 )
 
 // New returns a new SecretsManager and also a channel that will send errors that may arise in the concurrent internal
@@ -25,7 +26,22 @@ func New(opts ...Option) (SecretsManager, <-chan error, error) {
 		client = &http.Client{}
 	}
 
-	tokenGetter := startTokenJob(c.vaultAddress, c.gitHubToken, c.k8sMountPath, c.k8sRole, errChan, client)
+	// initializedChan is used to signal that the tokenGetter has been initialized. This ensures that secrets are not
+	// requested before we have a valid token. This channel should only be used once, and no actual message will ever
+	// be sent on it. Instead, it will be closed when the tokenGetter has been initialized.
+	initializedChan := make(chan struct{})
+
+	tokenGetter := startTokenJob(c.vaultAddress, c.gitHubToken, c.k8sMountPath, c.k8sRole, errChan, initializedChan, client)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func(ch <-chan struct{}, w *sync.WaitGroup) {
+		defer w.Done()
+		<-ch
+	}(initializedChan, wg)
+
+	// wait for the tokenGetter to be initialized before starting the manager
+	wg.Wait()
 
 	m := newManager(c.vaultAddress, tokenGetter, errChan)
 	return m, errChan, nil

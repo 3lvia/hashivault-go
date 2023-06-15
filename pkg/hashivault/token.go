@@ -8,7 +8,7 @@ import (
 
 type tokenGetterFunc func() string
 
-func startTokenJob(vaultAddress, gitHubToken, k8sMountPath, k8sRole string, errChan chan<- error, client *http.Client) tokenGetterFunc {
+func startTokenJob(vaultAddress, gitHubToken, k8sMountPath, k8sRole string, errChan chan<- error, initializedChan chan<- struct{}, client *http.Client) tokenGetterFunc {
 	j := &tokenJob{
 		mux:          &sync.Mutex{},
 		vaultAddress: vaultAddress,
@@ -17,7 +17,7 @@ func startTokenJob(vaultAddress, gitHubToken, k8sMountPath, k8sRole string, errC
 		k8sRole:      k8sRole,
 		client:       client,
 	}
-	go j.start(errChan)
+	go j.start(errChan, initializedChan)
 	return j.token
 }
 
@@ -31,7 +31,7 @@ type tokenJob struct {
 	client       *http.Client
 }
 
-func (j *tokenJob) start(errChannel chan<- error) {
+func (j *tokenJob) start(errChannel chan<- error, initializedChan chan<- struct{}) {
 	authResponse, err := j.authenticate()
 	if err != nil {
 		errChannel <- err
@@ -43,6 +43,8 @@ func (j *tokenJob) start(errChannel chan<- error) {
 		// no need to renew token, so we're done
 		return
 	}
+
+	close(initializedChan)
 
 	after := authResponse.After()
 	for {
