@@ -32,12 +32,14 @@ type tokenJob struct {
 }
 
 func (j *tokenJob) start(errChannel chan<- error) {
+	j.mux.Lock()
 	authResponse, err := j.authenticate()
 	if err != nil {
 		errChannel <- err
 		return
 	}
 	j.currentToken = authResponse.ClientToken()
+	j.mux.Unlock()
 
 	if !authResponse.Renewable() {
 		// no need to renew token, so we're done
