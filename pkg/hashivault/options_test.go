@@ -35,6 +35,57 @@ func Test_optionsCollector_validate_nothingButVaultAddress(t *testing.T) {
 	}
 }
 
+func Test_optionsCollector_validate_options(t *testing.T) {
+	clearEnvVars(t)
+
+	c := &optionsCollector{}
+	opt := WithVaultAddress("http://localhost:8200")
+	opt(c)
+	opt = WithGitHubToken("my-token")
+	opt(c)
+
+	c.initialize()
+	if err := c.validate(); err != nil {
+		t.Fatal(err)
+	}
+
+	if c.vaultAddress != "http://localhost:8200" {
+		t.Errorf("unexpected vault address, got: %s", c.vaultAddress)
+	}
+	if c.gitHubToken != "my-token" {
+		t.Errorf("unexpected github token, got: %s", c.gitHubToken)
+	}
+}
+
+func Test_optionsCollector_validate_overrideWithEnvVars(t *testing.T) {
+	clearEnvVars(t)
+
+	c := &optionsCollector{}
+	opt := WithVaultAddress("http://localhost:8200")
+	opt(c)
+	opt = WithGitHubToken("my-token")
+	opt(c)
+
+	if err := os.Setenv("VAULT_ADDR", "http://localhost:8201"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("GITHUB_TOKEN", "my-other-token"); err != nil {
+		t.Fatal(err)
+	}
+
+	c.initialize()
+	if err := c.validate(); err != nil {
+		t.Fatal(err)
+	}
+
+	if c.vaultAddress != "http://localhost:8201" {
+		t.Errorf("unexpected vault address, got: %s", c.vaultAddress)
+	}
+	if c.gitHubToken != "my-other-token" {
+		t.Errorf("unexpected github token, got: %s", c.gitHubToken)
+	}
+}
+
 func Test_optionsCollector_validate_FromEnvVars(t *testing.T) {
 	clearEnvVars(t)
 	if err := os.Setenv("VAULT_ADDR", "http://localhost:8200"); err != nil {
@@ -44,9 +95,8 @@ func Test_optionsCollector_validate_FromEnvVars(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	opt := LoadFromEnvVars()
 	c := &optionsCollector{}
-	opt(c)
+	//opt(c)
 
 	c.initialize()
 	if err := c.validate(); err != nil {

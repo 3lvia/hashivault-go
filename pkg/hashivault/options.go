@@ -7,12 +7,11 @@ import (
 )
 
 type optionsCollector struct {
-	client          *http.Client
-	vaultAddress    string
-	gitHubToken     string
-	k8sMountPath    string
-	k8sRole         string
-	loadFromEnvVars bool
+	client       *http.Client
+	vaultAddress string
+	gitHubToken  string
+	k8sMountPath string
+	k8sRole      string
 }
 
 // Option is a function that can be used to configure this package.
@@ -47,21 +46,26 @@ func WithKubernetes(mountPath, role string) Option {
 	}
 }
 
-// LoadFromEnvVars specifies that the options should be loaded from environment variables.
-func LoadFromEnvVars() Option {
-	return func(o *optionsCollector) {
-		o.loadFromEnvVars = true
-	}
-}
-
 func (c *optionsCollector) initialize() {
-	if !c.loadFromEnvVars {
-		return
+	va := os.Getenv("VAULT_ADDR")
+	if va != "" {
+		c.vaultAddress = va
 	}
-	c.vaultAddress = os.Getenv("VAULT_ADDR")
-	c.gitHubToken = os.Getenv("GITHUB_TOKEN")
-	c.k8sMountPath = os.Getenv("MOUNT_PATH")
-	c.k8sRole = os.Getenv("ROLE")
+
+	ght := os.Getenv("GITHUB_TOKEN")
+	if ght != "" {
+		c.gitHubToken = ght
+	}
+
+	k8sMP := os.Getenv("MOUNT_PATH")
+	if k8sMP != "" {
+		c.k8sMountPath = k8sMP
+	}
+
+	k8sR := os.Getenv("ROLE")
+	if k8sR != "" {
+		c.k8sRole = k8sR
+	}
 }
 
 func (c *optionsCollector) validate() error {
