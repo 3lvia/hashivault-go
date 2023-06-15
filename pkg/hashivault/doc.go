@@ -1,15 +1,22 @@
 // Package hashivault provides a Vault client for the Hashicorp Vault secrets management solution. It supports three
-// modes of authentication against Vault:
-// 1. GitHub authentication for people
+// modes of authentication against Vault (here listed according to precedence):
+// 1. Vault tokens for people, usually in debugging situations where the other methods are not available
 // 2. Kubernetes authentication for pods
-// 3. Azure AD SSO authentication for people (not yet implemented)
+// 3. Azure AD SSO authentication (OICD) for people (not yet implemented)
+// 4. GitHub authentication for people
 //
-// The mode of authentication is determined by the environment variables:
+// The package can be configured via the options pattern, i.e. by sending a number of options to the New function.
+// However, environment variables can also be used to configure this package. Configuration via environment variables
+// takes precedence over configuration via the options pattern. The following environment variables are supported:
 //  1. GITHUB_TOKEN. If this variable is set, the client will authenticate against Vault using the GitHub auth method.
 //     This takes precedence over the other methods.
 //  2. MOUNT_PATH and ROLE. If these variables are set, the client will authenticate using the Kubernetes auth method.
+//  3. VAULT_ADDR. This variable must be set to the address of the Vault server.
+//  4. VAULT_TOKEN. If this variable is set, the client will authenticate against Vault using the Vault token auth
 //
-// The environment variable VAULT_ADDR must be set to the address of the Vault server.
+// In the context of developing and running services in Elvia, the recommended approach is to use OICD authentication
+// against Azure AD while developing, while Kubernetes authentication is used when running in the Kubernetes cluster.
+// The latter is configured via environment variables, while the former is configured via the options pattern.
 //
 // The client will periodically renew the authentication token. The token is renewed when it has less than 30 seconds
 // left to live. The token is renewed in a separate goroutine, so the client will not block while waiting for the token

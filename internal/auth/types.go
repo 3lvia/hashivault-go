@@ -2,6 +2,23 @@ package auth
 
 import "time"
 
+// Method is the authentication method to use when authenticating with Vault.
+type Method int
+
+const (
+	// MethodGitHub is the authentication method where GitHub tokens are used to autenticate the user.
+	MethodGitHub Method = iota
+
+	// MethodK8s is the authentication method where Kubernetes service accounts are used to authenticate the user.
+	MethodK8s
+
+	// MethodOICD is the authentication method where OpenID Connect tokens are used to authenticate the user.
+	MethodOICD
+
+	// MethodToken is the authentication method where a Vault token has been obtained elsewhere and is used directly.
+	MethodToken
+)
+
 // gitToken holds github authentication information to be formatted to a bytes buffer
 type gitToken struct {
 	Token string `json:"token"`

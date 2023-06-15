@@ -3,7 +3,6 @@ package hashivault
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 )
@@ -18,9 +17,8 @@ func TestNew_static(t *testing.T) {
 	})
 
 	gitHubToken := "my-github-token"
-	initEnv(url, gitHubToken)
 
-	sm, errChan, err := New(WithClient(client))
+	sm, errChan, err := New(WithClient(client), WithVaultAddress(url), WithGitHubToken(gitHubToken))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,9 +56,8 @@ func TestNew_dynamic(t *testing.T) {
 	})
 
 	gitHubToken := "my-github-token"
-	initEnv(url, gitHubToken)
 
-	sm, errChan, err := New(WithClient(client))
+	sm, errChan, err := New(WithClient(client), WithVaultAddress(url), WithGitHubToken(gitHubToken))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,11 +87,6 @@ func TestNew_dynamic(t *testing.T) {
 	if sec["instrumentation-key"] != "secret-2" {
 		t.Errorf("expected 'value', got '%s'", sec["instrumentation-key"])
 	}
-}
-
-func initEnv(addr string, gitHubToken string) {
-	os.Setenv("VAULT_ADDR", addr)
-	os.Setenv("GITHUB_TOKEN", gitHubToken)
 }
 
 func NoErr(t *testing.T, err error) {
