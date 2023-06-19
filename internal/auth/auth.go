@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 )
 
-func Authenticate(addr string, opts ...Option) (AuthenticationResponse, error) {
+func Authenticate(addr string, method Method, opts ...Option) (AuthenticationResponse, error) {
 	collector := &optionsCollector{}
 	for _, opt := range opts {
 		opt(collector)
@@ -21,7 +20,10 @@ func Authenticate(addr string, opts ...Option) (AuthenticationResponse, error) {
 		client = &http.Client{}
 	}
 
-	if collector.gitHubToken != "" {
+	if method == MethodGitHub {
+		if collector.gitHubToken == "" {
+			return nil, errors.New("no GitHub token provided")
+		}
 		return authGitHub(addr, collector.gitHubToken, client)
 	}
 
@@ -30,70 +32,6 @@ func Authenticate(addr string, opts ...Option) (AuthenticationResponse, error) {
 	}
 
 	return nil, errors.New("no authentication method provided")
-}
-
-func authK8s(vaultAddr, k8ServicePath, role string, client *http.Client) (AuthenticationResponse, error) {
-	path := "auth/" + k8ServicePath + "/login"
-	requestBody, err := k8sLogin(k8ServicePath, role)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := authReq(vaultAddr, path, requestBody)
-	if err != nil {
-		return nil, fmt.Errorf("while building http request: %w", err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("while sending http request: %w", err)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("while reading response body: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var response authenticationResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling response body: %w", err)
-	}
-
-	return response, nil
-}
-
-func authGitHub(vaultAddr, githubToken string, client *http.Client) (AuthenticationResponse, error) {
-	path := "auth/github/login"
-	requestBody, err := githubLogin(githubToken)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := authReq(vaultAddr, path, requestBody)
-	if err != nil {
-		return nil, fmt.Errorf("while building http request: %w", err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("while sending http request: %w", err)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("while reading response body: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var response authenticationResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return nil, fmt.Errorf("while unmarshalling response body: %w", err)
-	}
-
-	return response, nil
 }
 
 // authReq returns a http request for authenticating to Vault
@@ -113,13 +51,6 @@ func makeURL(address, path string) string {
 	return address + "/v1/" + path
 }
 
-// githubLogin handles converting the github token string to a bytes buffer
-func githubLogin(login string) (*bytes.Buffer, error) {
-	return loginBuffer(&gitToken{
-		Token: login,
-	})
-}
-
 // loginBuffer converts a login token to a bytes buffer
 func loginBuffer(lt interface{}) (*bytes.Buffer, error) {
 	js, err := json.Marshal(lt)
@@ -128,19 +59,6 @@ func loginBuffer(lt interface{}) (*bytes.Buffer, error) {
 	}
 
 	return bytes.NewBuffer(js), nil
-}
-
-// k8sLogin handles converting the service path and role to a bytes buffer
-func k8sLogin(k8ServicePath string, role string) (*bytes.Buffer, error) {
-	jwt, err := getJWT(k8ServicePath)
-	if err != nil {
-		return nil, err
-	}
-
-	return loginBuffer(&k8sToken{
-		JWT:  jwt,
-		Role: role,
-	})
 }
 
 // getJWT reads JSON web token from file at the service path

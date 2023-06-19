@@ -14,7 +14,7 @@ func TestAuthenticate_github(t *testing.T) {
 	defer testServer.Close()
 
 	ghToken := "MY_GITHUB_TOKEN"
-	tokenResponse, err := Authenticate(testServer.URL, WithGitHubToken(ghToken), WithClient(testServer.Client()))
+	tokenResponse, err := Authenticate(testServer.URL, MethodGitHub, WithGitHubToken(ghToken), WithClient(testServer.Client()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestAuthenticate_k8s(t *testing.T) {
 
 	servicePath := "MY_SERVICE_PATH"
 	role := "MY_ROLE"
-	tokenResponse, err := Authenticate(testServer.URL, WithK8s(servicePath, role), WithClient(testServer.Client()))
+	tokenResponse, err := Authenticate(testServer.URL, MethodK8s, WithK8s(servicePath, role), WithClient(testServer.Client()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

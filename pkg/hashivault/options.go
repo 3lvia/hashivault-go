@@ -108,6 +108,9 @@ func (c *optionsCollector) validate() error {
 	if c.vaultAddress == "" {
 		return fmt.Errorf("VAULT_ADDR not set")
 	}
+	if c.vaultToken != "" {
+		return nil
+	}
 	if c.useOIDC {
 		return nil
 	}

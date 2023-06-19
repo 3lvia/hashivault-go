@@ -43,7 +43,7 @@ const (
 
 var errorRegex = regexp.MustCompile(`(?s)Errors:.*\* *(.*)`)
 
-type OICDHandler struct {
+type oicdHandler struct {
 }
 
 // loginResp implements vault's command.LoginHandler interface, but we do not check
@@ -53,7 +53,7 @@ type loginResp struct {
 	err    error
 }
 
-func (h *OICDHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, error) {
+func (h *oicdHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, error) {
 	mount, ok := m["mount"]
 	if !ok {
 		mount = defaultMount

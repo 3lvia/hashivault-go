@@ -25,7 +25,7 @@ func New(opts ...Option) (SecretsManager, <-chan error, error) {
 		client = &http.Client{}
 	}
 
-	tokenGetter := startTokenJob(c.vaultAddress, c.gitHubToken, c.k8sMountPath, c.k8sRole, errChan, client)
+	tokenGetter := startTokenJob(c.vaultAddress, c.vaultToken, c.gitHubToken, c.k8sMountPath, c.k8sRole, errChan, client)
 
 	m := newManager(c.vaultAddress, tokenGetter, errChan)
 	return m, errChan, nil

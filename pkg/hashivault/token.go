@@ -8,7 +8,13 @@ import (
 
 type tokenGetterFunc func() string
 
-func startTokenJob(vaultAddress, gitHubToken, k8sMountPath, k8sRole string, errChan chan<- error, client *http.Client) tokenGetterFunc {
+func startTokenJob(vaultAddress, vaultToken, gitHubToken, k8sMountPath, k8sRole string, errChan chan<- error, client *http.Client) tokenGetterFunc {
+	if vaultToken != "" {
+		return func() string {
+			return vaultToken
+		}
+	}
+
 	j := &tokenJob{
 		mux:          &sync.Mutex{},
 		vaultAddress: vaultAddress,
@@ -70,8 +76,8 @@ func (j *tokenJob) token() string {
 
 func (j *tokenJob) authenticate() (auth.AuthenticationResponse, error) {
 	if j.gitHubToken != "" {
-		return auth.Authenticate(j.vaultAddress, auth.WithGitHubToken(j.gitHubToken), auth.WithClient(j.client))
+		return auth.Authenticate(j.vaultAddress, auth.MethodGitHub, auth.WithGitHubToken(j.gitHubToken), auth.WithClient(j.client))
 	}
 
-	return auth.Authenticate(j.vaultAddress, auth.WithK8s(j.k8sMountPath, j.k8sRole), auth.WithClient(j.client))
+	return auth.Authenticate(j.vaultAddress, auth.MethodK8s, auth.WithK8s(j.k8sMountPath, j.k8sRole), auth.WithClient(j.client))
 }

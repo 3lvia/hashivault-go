@@ -7,6 +7,32 @@ import (
 	"time"
 )
 
+func Test_4real(t *testing.T) {
+	//sm, errChan, err := New(
+	//	WithVaultAddress("https://vault.dev-elvia.io"),
+	//	WithVaultToken("secret_token"))
+	//
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//go func(ec <-chan error) {
+	//	e := <-ec
+	//	if e != nil {
+	//		t.Error(e)
+	//	}
+	//}(errChan)
+	//
+	//f, err := sm.GetSecret("kunde/kv/data/appinsights/kunde")
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//m := f()
+	//x := m
+	//_ = x
+}
+
 func TestNew_static(t *testing.T) {
 	url, client, closer := startTestServer(t)
 	defer closer()
