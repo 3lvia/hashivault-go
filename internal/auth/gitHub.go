@@ -24,6 +24,9 @@ func authGitHub(vaultAddr, githubToken string, client *http.Client) (Authenticat
 	if err != nil {
 		return nil, fmt.Errorf("while sending http request: %w", err)
 	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

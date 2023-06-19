@@ -20,14 +20,18 @@ func Authenticate(addr string, method Method, opts ...Option) (AuthenticationRes
 		client = &http.Client{}
 	}
 
-	if method == MethodGitHub {
+	switch method {
+	case MethodOICD:
+		return authOICD(addr)
+	case MethodGitHub:
 		if collector.gitHubToken == "" {
 			return nil, errors.New("no GitHub token provided")
 		}
 		return authGitHub(addr, collector.gitHubToken, client)
-	}
-
-	if collector.k8sServicePath != "" && collector.k8sRole != "" {
+	case MethodK8s:
+		if collector.k8sServicePath == "" || collector.k8sRole == "" {
+			return nil, errors.New("no k8s service path or role provided")
+		}
 		return authK8s(addr, collector.k8sServicePath, collector.k8sRole, client)
 	}
 

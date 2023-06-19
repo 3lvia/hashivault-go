@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	v, errChan, err := hashivault.New()
+	v, errChan, err := hashivault.New(hashivault.WithOIDC(), hashivault.WithVaultAddress("https://vault.dev-elvia.io"))
 	if err != nil {
 		log.Fatal(err)
 	}

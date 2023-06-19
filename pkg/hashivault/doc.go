@@ -2,21 +2,32 @@
 // modes of authentication against Vault (here listed according to precedence):
 // 1. Vault tokens for people, usually in debugging situations where the other methods are not available
 // 2. Kubernetes authentication for pods
-// 3. Azure AD SSO authentication (OICD) for people (not yet implemented)
+// 3. Azure AD SSO authentication (OICD) for people
 // 4. GitHub authentication for people
 //
 // The package can be configured via the options pattern, i.e. by sending a number of options to the New function.
 // However, environment variables can also be used to configure this package. Configuration via environment variables
 // takes precedence over configuration via the options pattern. The following environment variables are supported:
 //  1. GITHUB_TOKEN. If this variable is set, the client will authenticate against Vault using the GitHub auth method.
-//     This takes precedence over the other methods.
+//     This takes precedence over the other methods, except pre-authentication, se 4) below.
 //  2. MOUNT_PATH and ROLE. If these variables are set, the client will authenticate using the Kubernetes auth method.
 //  3. VAULT_ADDR. This variable must be set to the address of the Vault server.
-//  4. VAULT_TOKEN. If this variable is set, the client will authenticate against Vault using the Vault token auth
+//  4. VAULT_TOKEN. If this variable is set, the client will be pre-authenticated, and will use the supplied token for
+//     all requests to Vault. This takes precedence over the other methods.
 //
 // In the context of developing and running services in Elvia, the recommended approach is to use OICD authentication
 // against Azure AD while developing, while Kubernetes authentication is used when running in the Kubernetes cluster.
-// The latter is configured via environment variables, while the former is configured via the options pattern.
+// The latter is configured via environment variables, while the former is configured via the options pattern. Thus, the
+// recommended approach is to use the following code in the main function:
+// ```
+// v, errChan, err := hashivault.New(hashivault.WithOIDC(), hashivault.WithVaultAddress("https://vault.dev-elvia.io"))
+// if err != nil {
+//   log.Fatal(err)
+// }
+// ```
+// This ensures that the client will authenticate against Vault using OICD when running on the development machine,
+// while it will use Kubernetes authentication when running in the Kubernetes cluster (because the environment
+// variables MOUNT_PATH and ROLE will be set).
 //
 // The client will periodically renew the authentication token. The token is renewed when it has less than 30 seconds
 // left to live. The token is renewed in a separate goroutine, so the client will not block while waiting for the token
@@ -50,7 +61,7 @@
 // )
 //
 //	func main() {
-//	 v, errChan, err := hashivault.New()
+//	 v, errChan, err := hashivault.New(hashivault.WithOIDC(), hashivault.WithVaultAddress("https://vault.dev-elvia.io")
 //   if err != nil {
 //	   log.Fatal(err)
 //	 }
