@@ -33,7 +33,7 @@ type evergreenSecret struct {
 func (e *evergreenSecret) get() map[string]any {
 	e.mux.Lock()
 	defer e.mux.Unlock()
-	return e.sec.GetData()
+	return e.sec.data()
 }
 
 func (e *evergreenSecret) start(errChan chan<- error) {

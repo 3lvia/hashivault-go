@@ -32,7 +32,7 @@ func (m *manager) GetSecret(path string) (EvergreenSecretsFunc, error) {
 	}
 
 	if !sec.Renewable {
-		return sec.GetData, nil
+		return sec.data, nil
 	}
 
 	es := newEvergreen(path, m.vaultAddress, sec, m.tokenGetter, m.client, m.errChan)

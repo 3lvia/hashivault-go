@@ -29,26 +29,26 @@ type secret struct {
 	Data          map[string]map[string]interface{} `json:"data"`
 }
 
-func (s *secret) GetRequestID() string {
+func (s *secret) requestID() string {
 	return s.RequestID
 }
 
-func (s *secret) GetLeaseID() string {
+func (s *secret) leaseID() string {
 	return s.LeaseID
 }
 
-func (s *secret) IsRenewable() bool {
+func (s *secret) renewable() bool {
 	return s.Renewable
 }
 
-func (s *secret) GetLeaseDuration() int {
+func (s *secret) leaseDuration() int {
 	return s.LeaseDuration
 }
 
-func (s *secret) GetData() map[string]interface{} {
+func (s *secret) data() map[string]interface{} {
 	return s.Data["data"]
 }
 
-func (s *secret) GetMetadata() map[string]interface{} {
+func (s *secret) metadata() map[string]interface{} {
 	return s.Data["metadata"]
 }
