@@ -8,22 +8,25 @@ import (
 
 type tokenGetterFunc func() string
 
-func startTokenJob(vaultAddress, vaultToken, gitHubToken, k8sMountPath, k8sRole string, errChan chan<- error, client *http.Client) tokenGetterFunc {
-	if vaultToken != "" {
+func startTokenJob(c *optionsCollector, errChan chan<- error, initializedChan chan<- struct{}, client *http.Client) tokenGetterFunc {
+	if c.vaultToken != "" {
+		// If the token is already set, just return it
 		return func() string {
-			return vaultToken
+			return c.vaultToken
 		}
 	}
 
 	j := &tokenJob{
 		mux:          &sync.Mutex{},
-		vaultAddress: vaultAddress,
-		gitHubToken:  gitHubToken,
-		k8sMountPath: k8sMountPath,
-		k8sRole:      k8sRole,
+		vaultAddress: c.vaultAddress,
+		gitHubToken:  c.gitHubToken,
+		k8sMountPath: c.k8sMountPath,
+		k8sRole:      c.k8sRole,
 		client:       client,
+		useOICD:      c.useOIDC,
 	}
-	go j.start(errChan)
+
+	go j.start(errChan, initializedChan)
 	return j.token
 }
 
@@ -34,18 +37,23 @@ type tokenJob struct {
 	k8sMountPath string
 	k8sRole      string
 	currentToken string
+	useOICD      bool
 	client       *http.Client
 }
 
-func (j *tokenJob) start(errChannel chan<- error) {
+func (j *tokenJob) start(errChannel chan<- error, initializedChan chan<- struct{}) {
 	j.mux.Lock()
 	authResponse, err := j.authenticate()
 	if err != nil {
+		close(initializedChan)
 		errChannel <- err
 		return
 	}
 	j.currentToken = authResponse.ClientToken()
 	j.mux.Unlock()
+
+	// signal that we're done initializing
+	close(initializedChan)
 
 	if !authResponse.Renewable() {
 		// no need to renew token, so we're done
@@ -75,6 +83,9 @@ func (j *tokenJob) token() string {
 }
 
 func (j *tokenJob) authenticate() (auth.AuthenticationResponse, error) {
+	if j.useOICD {
+		return auth.Authenticate(j.vaultAddress, auth.MethodOICD, auth.WithClient(j.client))
+	}
 	if j.gitHubToken != "" {
 		return auth.Authenticate(j.vaultAddress, auth.MethodGitHub, auth.WithGitHubToken(j.gitHubToken), auth.WithClient(j.client))
 	}

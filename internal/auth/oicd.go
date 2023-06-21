@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -43,7 +45,77 @@ const (
 
 var errorRegex = regexp.MustCompile(`(?s)Errors:.*\* *(.*)`)
 
+type oicdResponse struct {
+	s *api.Secret
+}
+
+func (r oicdResponse) ClientToken() string {
+	return r.s.Auth.ClientToken
+}
+
+func (r oicdResponse) LeaseDurationSeconds() int {
+	return r.s.Auth.LeaseDuration
+}
+
+func (r oicdResponse) Renewable() bool {
+	return r.s.Auth.Renewable
+}
+
+func (r oicdResponse) After() <-chan time.Time {
+	return time.After(time.Duration(r.s.Auth.LeaseDuration) * time.Second)
+}
+
+func authOICD(addr string) (AuthenticationResponse, error) {
+	doneCh := make(chan loginResp)
+	var resp loginResp
+
+	client, err := api.NewClient(&api.Config{
+		Address: addr,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	errChan := make(chan error)
+	go func(ec chan<- error, port string) {
+		pp := ":" + port
+		if err := http.ListenAndServe(pp, nil); err != nil {
+			ec <- err
+			return
+		}
+	}(errChan, defaultPort)
+
+	go func(ch chan<- loginResp, c *api.Client) {
+		h := &oicdHandler{doneCh: ch}
+		v := map[string]string{}
+		h.Auth(c, v)
+	}(doneCh, client)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	func(ch <-chan loginResp, ec <-chan error, w *sync.WaitGroup) {
+		defer w.Done()
+		select {
+		case resp = <-ch:
+			// do nothing
+		case err := <-ec:
+			resp = loginResp{err: err}
+		}
+	}(doneCh, errChan, wg)
+
+	wg.Wait()
+
+	if resp.err != nil {
+		return nil, resp.err
+	}
+
+	finalResp := oicdResponse{s: resp.secret}
+	return finalResp, nil
+}
+
 type oicdHandler struct {
+	doneCh chan<- loginResp
 }
 
 // loginResp implements vault's command.LoginHandler interface, but we do not check
@@ -53,7 +125,7 @@ type loginResp struct {
 	err    error
 }
 
-func (h *oicdHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, error) {
+func (h *oicdHandler) Auth(c *api.Client, m map[string]string) {
 	mount, ok := m["mount"]
 	if !ok {
 		mount = defaultMount
@@ -101,14 +173,16 @@ func (h *oicdHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, err
 
 	var skipBrowserLaunch bool
 	if v, err := parseBool(FieldSkipBrowser, false); err != nil {
-		return nil, err
+		h.doneCh <- loginResp{err: err}
+		return
 	} else {
 		skipBrowserLaunch = v
 	}
 
 	var abortOnError bool
 	if v, err := parseBool(FieldAbortOnError, false); err != nil {
-		return nil, err
+		h.doneCh <- loginResp{err: err}
+		return
 	} else {
 		abortOnError = v
 	}
@@ -117,16 +191,17 @@ func (h *oicdHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, err
 
 	authURL, clientNonce, err := fetchAuthURL(c, role, mount, callbackPort, callbackMethod, callbackHost)
 	if err != nil {
-		return nil, err
+		h.doneCh <- loginResp{err: err}
+		return
 	}
 
 	// Set up callback handler
-	doneCh := make(chan loginResp)
-	http.HandleFunc("/oidc/callback", callbackHandler(c, mount, clientNonce, doneCh))
+	http.HandleFunc("/oidc/callback", callbackHandler(c, mount, clientNonce, h.doneCh))
 
 	listener, err := net.Listen("tcp", listenAddress+":"+port)
 	if err != nil {
-		return nil, err
+		h.doneCh <- loginResp{err: err}
+		return
 	}
 	defer listener.Close()
 
@@ -135,7 +210,8 @@ func (h *oicdHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, err
 		fmt.Fprintf(os.Stderr, "Complete the login via your OIDC provider. Launching browser to:\n\n    %s\n\n\n", authURL)
 		if err := util.OpenURL(authURL); err != nil {
 			if abortOnError {
-				return nil, fmt.Errorf("failed to launch the browser %s=%t, err=%w", FieldAbortOnError, abortOnError, err)
+				h.doneCh <- loginResp{err: fmt.Errorf("failed to launch the browser %s=%t, err=%w", FieldAbortOnError, abortOnError, err)}
+				return
 			}
 			fmt.Fprintf(os.Stderr, "Error attempting to automatically open browser: '%s'.\nPlease visit the authorization URL manually.", err)
 		}
@@ -143,8 +219,6 @@ func (h *oicdHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, err
 		fmt.Fprintf(os.Stderr, "Complete the login via your OIDC provider. Open the following link in your browser:\n\n    %s\n\n\n", authURL)
 	}
 	fmt.Fprintf(os.Stderr, "Waiting for OIDC authentication to complete...\n")
-
-	return nil, nil
 }
 
 func fetchAuthURL(c *api.Client, role, mount, callbackPort string, callbackMethod string, callbackHost string) (string, string, error) {
