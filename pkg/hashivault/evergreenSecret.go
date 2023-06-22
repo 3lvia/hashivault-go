@@ -1,6 +1,10 @@
 package hashivault
 
 import (
+	"context"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"sync"
 	"time"
@@ -40,7 +44,15 @@ func (e *evergreenSecret) start(errChan chan<- error) {
 	for {
 		<-time.After(time.Duration(e.sec.LeaseDuration) * time.Second)
 		e.mux.Lock()
-		sec, err := get(e.path, e.vaultAddress, e.tokenGetter(), e.client)
+
+		tracer := otel.GetTracerProvider().Tracer(tracerName)
+		ctx, span := tracer.Start(
+			context.Background(),
+			"hashivault.evergreenSecret.start",
+			trace.WithAttributes(attribute.String("path", e.path)))
+		defer span.End()
+
+		sec, err := get(ctx, e.path, e.vaultAddress, e.tokenGetter(), e.client)
 		if err != nil {
 			errChan <- err
 			e.mux.Unlock()

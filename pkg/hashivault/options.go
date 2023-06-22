@@ -3,18 +3,21 @@ package hashivault
 import (
 	"fmt"
 	"github.com/3lvia/hashivault-go/internal/auth"
+	"log"
 	"net/http"
 	"os"
 )
 
 type optionsCollector struct {
-	client       *http.Client
-	vaultAddress string
-	gitHubToken  string
-	k8sMountPath string
-	k8sRole      string
-	useOIDC      bool
-	vaultToken   string
+	client         *http.Client
+	vaultAddress   string
+	gitHubToken    string
+	k8sMountPath   string
+	k8sRole        string
+	useOIDC        bool
+	vaultToken     string
+	otelTracerName string
+	logger         *log.Logger
 }
 
 // Option is a function that can be used to configure this package.
@@ -60,6 +63,21 @@ func WithKubernetes(mountPath, role string) Option {
 	return func(o *optionsCollector) {
 		o.k8sMountPath = mountPath
 		o.k8sRole = role
+	}
+}
+
+// WithOtelTracerName sets the name of the OpenTelemetry tracer to use when creating spans. If no name is set the
+// tracer name "go.opentelemetry.io/otel" is used.
+func WithOtelTracerName(name string) Option {
+	return func(o *optionsCollector) {
+		o.otelTracerName = name
+	}
+}
+
+// WithLogger sets the logger to use when logging. If no logger is set a noop logger is used.
+func WithLogger(logger *log.Logger) Option {
+	return func(o *optionsCollector) {
+		o.logger = logger
 	}
 }
 

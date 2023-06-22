@@ -1,6 +1,7 @@
 package hashivault
 
 import (
+	"context"
 	"net/http"
 	"testing"
 )
@@ -32,7 +33,7 @@ func Test_manager_SetDefaultGoogleCredentials(t *testing.T) {
 				tokenGetter:  tt.fields.tokenGetter,
 				errChan:      tt.fields.errChan,
 			}
-			if err := m.SetDefaultGoogleCredentials(tt.args.path, tt.args.key); (err != nil) != tt.wantErr {
+			if err := m.SetDefaultGoogleCredentials(context.Background(), tt.args.path, tt.args.key); (err != nil) != tt.wantErr {
 				t.Errorf("SetDefaultGoogleCredentials() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
