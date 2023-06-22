@@ -1,6 +1,9 @@
 package auth
 
-import "net/http"
+import (
+	"log"
+	"net/http"
+)
 
 type optionsCollector struct {
 	client *http.Client
@@ -9,6 +12,9 @@ type optionsCollector struct {
 
 	k8sServicePath string
 	k8sRole        string
+
+	l              *log.Logger
+	otelTracerName string
 }
 
 // Option expl
@@ -33,5 +39,17 @@ func WithK8s(servicePath, role string) Option {
 	return func(o *optionsCollector) {
 		o.k8sServicePath = servicePath
 		o.k8sRole = role
+	}
+}
+
+func WithLogger(l *log.Logger) Option {
+	return func(o *optionsCollector) {
+		o.l = l
+	}
+}
+
+func WithOtelTracerName(name string) Option {
+	return func(o *optionsCollector) {
+		o.otelTracerName = name
 	}
 }

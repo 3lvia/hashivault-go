@@ -32,7 +32,7 @@ func New(ctx context.Context, opts ...Option) (SecretsManager, <-chan error, err
 	l.Printf("starting hashivault secrets manager with tracer: %s", tracerName)
 
 	tracer := otel.GetTracerProvider().Tracer(tracerName)
-	_, span := tracer.Start(ctx, "hashivault.New")
+	spanCtx, span := tracer.Start(ctx, "hashivault.New")
 	defer span.End()
 
 	c.initialize()
@@ -62,7 +62,7 @@ func New(ctx context.Context, opts ...Option) (SecretsManager, <-chan error, err
 		// be sent on it. Instead, it will be closed when the tokenGetter has been initialized.
 		initializedChan := make(chan struct{})
 
-		tokenGetter = startTokenJob(c, errChan, initializedChan, client, l)
+		tokenGetter = startTokenJob(spanCtx, c, errChan, initializedChan, client, l)
 
 		wg := &sync.WaitGroup{}
 		wg.Add(1)

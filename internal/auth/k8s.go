@@ -2,13 +2,28 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"io"
 	"net/http"
 )
 
-func authK8s(vaultAddr, k8ServicePath, role string, client *http.Client) (AuthenticationResponse, error) {
+func authK8s(ctx context.Context, vaultAddr, k8ServicePath, role string, client *http.Client) (AuthenticationResponse, error) {
+	tracer := otel.GetTracerProvider().Tracer(tracerName)
+	_, span := tracer.Start(
+		ctx,
+		"auth.authGitHub",
+		trace.WithAttributes(
+			attribute.String("vault_addr", vaultAddr),
+			attribute.String("k8s_service_path", k8ServicePath),
+			attribute.String("k8s_role", role),
+		))
+	defer span.End()
+
 	path := "auth/" + k8ServicePath + "/login"
 	requestBody, err := k8sLogin(k8ServicePath, role)
 	if err != nil {

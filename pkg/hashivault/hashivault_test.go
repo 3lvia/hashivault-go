@@ -31,6 +31,14 @@ func TestNew_static(t *testing.T) {
 		"token job initialized, first token acquired",
 		"hashivault secrets manager initialized, ready to go!",
 	}
+	expectedSpans := []string{
+		"auth.authGitHub",
+		"auth.Authenticate",
+		"hashivault.tokenJob.authenticate",
+		"hashivault.New",
+		"hashivault.get",
+		"hashivault.GetSecret",
+	}
 
 	exporter := tracetest.NewInMemoryExporter()
 	tp := trace.NewTracerProvider(
@@ -78,12 +86,14 @@ func TestNew_static(t *testing.T) {
 	}
 
 	spans := exporter.GetSpans()
-	if len(spans) != 3 {
-		t.Fatalf("expected 3 span, got %d", len(spans))
+	if len(spans) != 6 {
+		t.Errorf("expected 6 spans, got %d", len(spans))
 	}
 	var newSpan tracetest.SpanStub
 	var getSecretSpan tracetest.SpanStub
+	spanMap := map[string]tracetest.SpanStub{}
 	for _, span := range spans {
+		spanMap[span.Name] = span
 		if span.Name == "hashivault.New" {
 			newSpan = span
 		}
@@ -91,11 +101,16 @@ func TestNew_static(t *testing.T) {
 			getSecretSpan = span
 		}
 	}
-	if newSpan.ChildSpanCount != 0 {
-		t.Errorf("expected 0 child spans, got %d", newSpan.ChildSpanCount)
+	if newSpan.ChildSpanCount != 1 {
+		t.Errorf("expected 1 child spans, got %d", newSpan.ChildSpanCount)
 	}
 	if getSecretSpan.ChildSpanCount != 1 {
 		t.Errorf("expected 1 child span, got %d", getSecretSpan.ChildSpanCount)
+	}
+	for _, spanName := range expectedSpans {
+		if _, ok := spanMap[spanName]; !ok {
+			t.Errorf("expected span '%s' to be in spanMap", spanName)
+		}
 	}
 }
 

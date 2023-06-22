@@ -1,10 +1,14 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/cap/util"
 	"github.com/hashicorp/go-secure-stdlib/base62"
 	"github.com/hashicorp/vault/api"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"net"
 	"net/http"
 	"os"
@@ -65,7 +69,11 @@ func (r oicdResponse) After() <-chan time.Time {
 	return time.After(time.Duration(r.s.Auth.LeaseDuration) * time.Second)
 }
 
-func authOICD(addr string) (AuthenticationResponse, error) {
+func authOICD(ctx context.Context, addr string) (AuthenticationResponse, error) {
+	tracer := otel.GetTracerProvider().Tracer(tracerName)
+	_, span := tracer.Start(ctx, "auth.authOICD", trace.WithAttributes(attribute.String("vault_addr", addr)))
+	defer span.End()
+
 	doneCh := make(chan loginResp)
 	var resp loginResp
 

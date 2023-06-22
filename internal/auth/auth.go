@@ -2,18 +2,41 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"io/ioutil"
 	"net/http"
 )
 
-func Authenticate(addr string, method Method, opts ...Option) (AuthenticationResponse, error) {
+const defaultTracerName = "go.opentelemetry.io/otel"
+
+var tracerName string
+
+func Authenticate(ctx context.Context, addr string, method Method, opts ...Option) (AuthenticationResponse, error) {
 	collector := &optionsCollector{}
 	for _, opt := range opts {
 		opt(collector)
 	}
+
+	tracerName = collector.otelTracerName
+	if tracerName == "" {
+		tracerName = defaultTracerName
+	}
+
+	l := collector.l
+	l.Printf("authenticating to %s using %s", addr, methodToString(method))
+
+	tracer := otel.GetTracerProvider().Tracer(tracerName)
+	spanCtx, span := tracer.Start(
+		ctx,
+		"auth.Authenticate",
+		trace.WithAttributes(attribute.String("method", methodToString(method))))
+	defer span.End()
 
 	client := collector.client
 	if client == nil {
@@ -22,20 +45,26 @@ func Authenticate(addr string, method Method, opts ...Option) (AuthenticationRes
 
 	switch method {
 	case MethodOICD:
-		return authOICD(addr)
+		return authOICD(spanCtx, addr)
 	case MethodGitHub:
 		if collector.gitHubToken == "" {
-			return nil, errors.New("no GitHub token provided")
+			err := errors.New("no GitHub token provided")
+			traceError(span, err)
+			return nil, err
 		}
-		return authGitHub(addr, collector.gitHubToken, client)
+		return authGitHub(spanCtx, addr, collector.gitHubToken, client)
 	case MethodK8s:
 		if collector.k8sServicePath == "" || collector.k8sRole == "" {
-			return nil, errors.New("no k8s service path or role provided")
+			err := errors.New("no k8s service path or role provided")
+			traceError(span, err)
+			return nil, err
 		}
-		return authK8s(addr, collector.k8sServicePath, collector.k8sRole, client)
+		return authK8s(spanCtx, addr, collector.k8sServicePath, collector.k8sRole, client)
 	}
 
-	return nil, errors.New("no authentication method provided")
+	err := fmt.Errorf("unknown authentication method: %s", methodToString(method))
+	traceError(span, err)
+	return nil, err
 }
 
 // authReq returns a http request for authenticating to Vault
@@ -73,4 +102,10 @@ func getJWT(k8ServicePath string) (string, error) {
 	}
 
 	return string(bytes.TrimSpace(b)), nil
+}
+
+func traceError(span trace.Span, err error) {
+	if err != nil {
+		span.RecordError(err)
+	}
 }

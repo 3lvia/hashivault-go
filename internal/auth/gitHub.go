@@ -2,13 +2,21 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"io"
 	"net/http"
 )
 
-func authGitHub(vaultAddr, githubToken string, client *http.Client) (AuthenticationResponse, error) {
+func authGitHub(ctx context.Context, vaultAddr, githubToken string, client *http.Client) (AuthenticationResponse, error) {
+	tracer := otel.GetTracerProvider().Tracer(tracerName)
+	_, span := tracer.Start(ctx, "auth.authGitHub", trace.WithAttributes(attribute.String("vault_addr", vaultAddr)))
+	defer span.End()
+
 	path := "auth/github/login"
 	requestBody, err := githubLogin(githubToken)
 	if err != nil {

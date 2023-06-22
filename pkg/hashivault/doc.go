@@ -58,11 +58,8 @@ to be renewed.
 
 INSTRUMENTATION
 The package uses the OpenTelemetry SDK for Go for tracing as well as *log.Logger for simple logging. It is up to the
-client to configure the tracer and logger.
-
-The logger is set with the option WithLogger. If not set, a noop logger is used by default.
-
-# Tracing is configured via otel.SetTracerProvider
+client to configure the tracer and logger. The logger is set with the option WithLogger. If not set, a noop logger is
+used by default. Tracing is configured via otel.SetTracerProvider
 
 GENERAL USAGE AND ABSTRACTIONS
 The main abstraction of this package is the SecretsManager interface. A new instance of SecretsManager is created
