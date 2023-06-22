@@ -6,6 +6,7 @@ import "time"
 type Method int
 
 const (
+	_ Method = iota // skip 0
 	// MethodGitHub is the authentication method where GitHub tokens are used to autenticate the user.
 	MethodGitHub Method = iota
 
@@ -18,6 +19,21 @@ const (
 	// MethodToken is the authentication method where a Vault token has been obtained elsewhere and is used directly.
 	MethodToken
 )
+
+func methodToString(m Method) string {
+	switch m {
+	case MethodGitHub:
+		return "GitHub"
+	case MethodK8s:
+		return "Kubernetes"
+	case MethodOICD:
+		return "OIDC"
+	case MethodToken:
+		return "Token"
+	default:
+		return "Unknown"
+	}
+}
 
 // gitToken holds github authentication information to be formatted to a bytes buffer
 type gitToken struct {

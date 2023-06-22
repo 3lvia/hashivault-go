@@ -1,9 +1,13 @@
 package hashivault
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"io"
 	"net/http"
 	"os"
@@ -25,22 +29,29 @@ type manager struct {
 	errChan      chan<- error
 }
 
-func (m *manager) GetSecret(path string) (EvergreenSecretsFunc, error) {
-	sec, err := get(path, m.vaultAddress, m.tokenGetter(), m.client)
+func (m *manager) GetSecret(ctx context.Context, path string) (EvergreenSecretsFunc, error) {
+	tracer := otel.GetTracerProvider().Tracer(tracerName)
+	spanCtx, span := tracer.Start(
+		ctx,
+		"hashivault.GetSecret",
+		trace.WithAttributes(attribute.String("path", path)))
+	defer span.End()
+
+	sec, err := get(spanCtx, path, m.vaultAddress, m.tokenGetter(), m.client)
 	if err != nil {
 		return nil, err
 	}
 
 	if !sec.Renewable {
-		return sec.GetData, nil
+		return sec.data, nil
 	}
 
 	es := newEvergreen(path, m.vaultAddress, sec, m.tokenGetter, m.client, m.errChan)
 	return es.get, nil
 }
 
-func (m *manager) SetDefaultGoogleCredentials(path, key string) error {
-	s, err := m.GetSecret(path)
+func (m *manager) SetDefaultGoogleCredentials(ctx context.Context, path, key string) error {
+	s, err := m.GetSecret(ctx, path)
 	if err != nil {
 		return err
 	}
@@ -71,16 +82,25 @@ func (m *manager) SetDefaultGoogleCredentials(path, key string) error {
 	return nil
 }
 
-func get(path, vaultAddress, token string, client *http.Client) (*secret, error) {
+func get(ctx context.Context, path, vaultAddress, token string, client *http.Client) (*secret, error) {
+	tracer := otel.GetTracerProvider().Tracer(tracerName)
+	_, span := tracer.Start(
+		ctx,
+		"hashivault.get",
+		trace.WithAttributes(attribute.String("path", path), attribute.String("vaultAddress", vaultAddress)))
+	defer span.End()
+
 	url := makeURL(vaultAddress, path)
 
 	req, err := secretsReq(url, token)
 	if err != nil {
+		traceError(span, err)
 		return nil, err
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
+		traceError(span, err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -88,12 +108,14 @@ func get(path, vaultAddress, token string, client *http.Client) (*secret, error)
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		traceError(span, err)
 		return nil, err
 	}
 
 	var sec secret
 	err = json.Unmarshal(body, &sec)
 	if err != nil {
+		traceError(span, err)
 		return nil, err
 	}
 
