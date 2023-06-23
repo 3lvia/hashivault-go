@@ -8,8 +8,7 @@ import (
 func Test_optionsCollector_validate_nothing(t *testing.T) {
 	clearEnvVars(t)
 	c := &optionsCollector{}
-	c.initialize()
-	err := c.validate()
+	err := c.build()
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -25,8 +24,7 @@ func Test_optionsCollector_validate_nothingButVaultAddress(t *testing.T) {
 	c := &optionsCollector{}
 	opt(c)
 
-	c.initialize()
-	err := c.validate()
+	err := c.build()
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -44,8 +42,7 @@ func Test_optionsCollector_validate_options(t *testing.T) {
 	opt = WithGitHubToken("my-token")
 	opt(c)
 
-	c.initialize()
-	if err := c.validate(); err != nil {
+	if err := c.build(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -73,8 +70,7 @@ func Test_optionsCollector_validate_overrideWithEnvVars(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c.initialize()
-	if err := c.validate(); err != nil {
+	if err := c.build(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,8 +94,7 @@ func Test_optionsCollector_validate_FromEnvVars(t *testing.T) {
 	c := &optionsCollector{}
 	//opt(c)
 
-	c.initialize()
-	if err := c.validate(); err != nil {
+	if err := c.build(); err != nil {
 		t.Fatal(err)
 	}
 

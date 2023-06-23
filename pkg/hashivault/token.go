@@ -26,7 +26,7 @@ func startTokenJob(ctx context.Context, c *optionsCollector, errChan chan<- erro
 		k8sMountPath: c.k8sMountPath,
 		k8sRole:      c.k8sRole,
 		client:       client,
-		useOICD:      c.useOIDC,
+		method:       c.authMethod(),
 		l:            l,
 	}
 
@@ -41,7 +41,7 @@ type tokenJob struct {
 	k8sMountPath string
 	k8sRole      string
 	currentToken string
-	useOICD      bool
+	method       auth.Method
 	client       *http.Client
 	l            *log.Logger
 }
@@ -54,6 +54,7 @@ func (j *tokenJob) start(ctx context.Context, errChannel chan<- error, initializ
 	if err != nil {
 		close(initializedChan)
 		errChannel <- err
+		j.mux.Unlock()
 		return
 	}
 	j.currentToken = authResponse.ClientToken()
@@ -97,35 +98,13 @@ func (j *tokenJob) authenticate(ctx context.Context) (auth.AuthenticationRespons
 	spanCtx, span := tracer.Start(ctx, "hashivault.tokenJob.authenticate")
 	defer span.End()
 
-	if j.useOICD {
-		j.l.Print("using OIDC authentication")
-		return auth.Authenticate(
-			spanCtx,
-			j.vaultAddress,
-			auth.MethodOICD,
-			auth.WithClient(j.client),
-			auth.WithLogger(j.l),
-			auth.WithOtelTracerName(tracerName))
-	}
-	if j.gitHubToken != "" {
-		j.l.Print("using GitHub authentication")
-		return auth.Authenticate(
-			spanCtx,
-			j.vaultAddress,
-			auth.MethodGitHub,
-			auth.WithGitHubToken(j.gitHubToken),
-			auth.WithClient(j.client),
-			auth.WithLogger(j.l),
-			auth.WithOtelTracerName(tracerName))
-	}
-
-	j.l.Print("using Kubernetes authentication")
 	return auth.Authenticate(
 		spanCtx,
 		j.vaultAddress,
-		auth.MethodK8s,
-		auth.WithK8s(j.k8sMountPath, j.k8sRole),
+		j.method,
 		auth.WithClient(j.client),
 		auth.WithLogger(j.l),
+		auth.WithGitHubToken(j.gitHubToken),
+		auth.WithK8s(j.k8sMountPath, j.k8sRole),
 		auth.WithOtelTracerName(tracerName))
 }
