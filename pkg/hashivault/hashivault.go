@@ -35,8 +35,7 @@ func New(ctx context.Context, opts ...Option) (SecretsManager, <-chan error, err
 	spanCtx, span := tracer.Start(ctx, "hashivault.New")
 	defer span.End()
 
-	c.initialize()
-	if err := c.validate(); err != nil {
+	if err := c.build(); err != nil {
 		traceError(span, err)
 		return nil, nil, fmt.Errorf("invalid options: %w", err)
 	}

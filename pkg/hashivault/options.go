@@ -85,17 +85,17 @@ func (c *optionsCollector) authMethod() auth.Method {
 	if c.vaultToken != "" {
 		return auth.MethodToken
 	}
-	if c.useOIDC {
-		return auth.MethodOICD
-	}
 	if c.k8sMountPath != "" {
 		return auth.MethodK8s
+	}
+	if c.useOIDC {
+		return auth.MethodOICD
 	}
 
 	return auth.MethodGitHub
 }
 
-func (c *optionsCollector) initialize() {
+func (c *optionsCollector) build() error {
 	va := os.Getenv("VAULT_ADDR")
 	if va != "" {
 		c.vaultAddress = va
@@ -120,9 +120,7 @@ func (c *optionsCollector) initialize() {
 	if vt != "" {
 		c.vaultToken = vt
 	}
-}
 
-func (c *optionsCollector) validate() error {
 	if c.vaultAddress == "" {
 		return fmt.Errorf("VAULT_ADDR not set")
 	}

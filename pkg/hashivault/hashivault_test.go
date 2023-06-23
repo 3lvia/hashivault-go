@@ -27,7 +27,7 @@ func TestNew_static(t *testing.T) {
 		"starting hashivault secrets manager with tracer: go.opentelemetry.io/otel",
 		fmt.Sprintf("using vault address: %s", url),
 		"starting token job",
-		"using GitHub authentication",
+		fmt.Sprintf("authenticating to %s using GitHub", url),
 		"token job initialized, first token acquired",
 		"hashivault secrets manager initialized, ready to go!",
 	}
