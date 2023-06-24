@@ -36,7 +36,7 @@ func New(ctx context.Context, opts ...Option) (SecretsManager, <-chan error, err
 	defer span.End()
 
 	if err := c.build(); err != nil {
-		traceError(span, err)
+		traceError(span, err, l)
 		return nil, nil, fmt.Errorf("invalid options: %w", err)
 	}
 
@@ -75,6 +75,6 @@ func New(ctx context.Context, opts ...Option) (SecretsManager, <-chan error, err
 
 	l.Print("hashivault secrets manager initialized, ready to go!")
 
-	m := newManager(c.vaultAddress, tokenGetter, errChan)
+	m := newManager(c.vaultAddress, tokenGetter, errChan, l)
 	return m, errChan, nil
 }

@@ -5,12 +5,13 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"log"
 	"net/http"
 	"sync"
 	"time"
 )
 
-func newEvergreen(path, vaultAddress string, sec *secret, tokenGetter tokenGetterFunc, client *http.Client, errChan chan<- error) *evergreenSecret {
+func newEvergreen(path, vaultAddress string, sec *secret, tokenGetter tokenGetterFunc, client *http.Client, errChan chan<- error, l *log.Logger) *evergreenSecret {
 	eg := &evergreenSecret{
 		path:         path,
 		sec:          sec,
@@ -18,6 +19,7 @@ func newEvergreen(path, vaultAddress string, sec *secret, tokenGetter tokenGette
 		client:       client,
 		vaultAddress: vaultAddress,
 		tokenGetter:  tokenGetter,
+		l:            l,
 	}
 
 	go eg.start(errChan)
@@ -32,6 +34,7 @@ type evergreenSecret struct {
 	sec          *secret
 	mux          *sync.Mutex
 	tokenGetter  tokenGetterFunc
+	l            *log.Logger
 }
 
 func (e *evergreenSecret) get() map[string]any {
@@ -52,7 +55,7 @@ func (e *evergreenSecret) start(errChan chan<- error) {
 			trace.WithAttributes(attribute.String("path", e.path)))
 		defer span.End()
 
-		sec, err := get(ctx, e.path, e.vaultAddress, e.tokenGetter(), e.client)
+		sec, err := get(ctx, e.path, e.vaultAddress, e.tokenGetter(), e.client, e.l)
 		if err != nil {
 			errChan <- err
 			e.mux.Unlock()

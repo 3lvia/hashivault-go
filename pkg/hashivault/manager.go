@@ -9,11 +9,12 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
 
-func newManager(vaultAddress string, tokenGetter tokenGetterFunc, errChan chan<- error) *manager {
+func newManager(vaultAddress string, tokenGetter tokenGetterFunc, errChan chan<- error, l *log.Logger) *manager {
 	return &manager{
 		vaultAddress: vaultAddress,
 		client:       &http.Client{},
@@ -27,6 +28,7 @@ type manager struct {
 	client       *http.Client
 	tokenGetter  tokenGetterFunc
 	errChan      chan<- error
+	l            *log.Logger
 }
 
 func (m *manager) GetSecret(ctx context.Context, path string) (EvergreenSecretsFunc, error) {
@@ -37,7 +39,7 @@ func (m *manager) GetSecret(ctx context.Context, path string) (EvergreenSecretsF
 		trace.WithAttributes(attribute.String("path", path)))
 	defer span.End()
 
-	sec, err := get(spanCtx, path, m.vaultAddress, m.tokenGetter(), m.client)
+	sec, err := get(spanCtx, path, m.vaultAddress, m.tokenGetter(), m.client, m.l)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +48,7 @@ func (m *manager) GetSecret(ctx context.Context, path string) (EvergreenSecretsF
 		return sec.data, nil
 	}
 
-	es := newEvergreen(path, m.vaultAddress, sec, m.tokenGetter, m.client, m.errChan)
+	es := newEvergreen(path, m.vaultAddress, sec, m.tokenGetter, m.client, m.errChan, m.l)
 	return es.get, nil
 }
 
@@ -82,7 +84,7 @@ func (m *manager) SetDefaultGoogleCredentials(ctx context.Context, path, key str
 	return nil
 }
 
-func get(ctx context.Context, path, vaultAddress, token string, client *http.Client) (*secret, error) {
+func get(ctx context.Context, path, vaultAddress, token string, client *http.Client, l *log.Logger) (*secret, error) {
 	tracer := otel.GetTracerProvider().Tracer(tracerName)
 	_, span := tracer.Start(
 		ctx,
@@ -91,16 +93,17 @@ func get(ctx context.Context, path, vaultAddress, token string, client *http.Cli
 	defer span.End()
 
 	url := makeURL(vaultAddress, path)
+	l.Printf("getting secrets from %s", url)
 
 	req, err := secretsReq(url, token)
 	if err != nil {
-		traceError(span, err)
+		traceError(span, err, l)
 		return nil, err
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		traceError(span, err)
+		traceError(span, err, l)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -108,17 +111,18 @@ func get(ctx context.Context, path, vaultAddress, token string, client *http.Cli
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		traceError(span, err)
+		traceError(span, err, l)
 		return nil, err
 	}
 
 	var sec secret
 	err = json.Unmarshal(body, &sec)
 	if err != nil {
-		traceError(span, err)
+		traceError(span, err, l)
 		return nil, err
 	}
 
+	l.Printf("got secrets from %s", url)
 	return &sec, nil
 }
 

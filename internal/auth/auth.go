@@ -59,6 +59,7 @@ func Authenticate(ctx context.Context, addr string, method Method, opts ...Optio
 			traceError(span, err)
 			return nil, err
 		}
+		l.Printf("using k8s service path %s and role %s", collector.k8sServicePath, collector.k8sRole)
 		return authK8s(spanCtx, addr, collector.k8sServicePath, collector.k8sRole, client)
 	}
 
