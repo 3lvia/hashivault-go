@@ -39,6 +39,8 @@ func (m *manager) GetSecret(ctx context.Context, path string) (EvergreenSecretsF
 		trace.WithAttributes(attribute.String("path", path)))
 	defer span.End()
 
+	m.l.Printf("getting secrets from %s", path)
+
 	sec, err := get(spanCtx, path, m.vaultAddress, m.tokenGetter(), m.client, m.l)
 	if err != nil {
 		return nil, err

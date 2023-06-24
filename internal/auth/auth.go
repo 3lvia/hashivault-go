@@ -60,7 +60,13 @@ func Authenticate(ctx context.Context, addr string, method Method, opts ...Optio
 			return nil, err
 		}
 		l.Printf("using k8s service path %s and role %s", collector.k8sServicePath, collector.k8sRole)
-		return authK8s(spanCtx, addr, collector.k8sServicePath, collector.k8sRole, client)
+		r, err := authK8s(spanCtx, addr, collector.k8sServicePath, collector.k8sRole, client)
+		if err != nil {
+			l.Printf("error authenticating to k8s: %s", err)
+		} else {
+			l.Printf("successfully authenticated to k8s, got client token of length %d", len(r.ClientToken()))
+		}
+		return r, err
 	}
 
 	err := fmt.Errorf("unknown authentication method: %s", methodToString(method))
