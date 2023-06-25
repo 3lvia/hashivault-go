@@ -20,6 +20,7 @@ func newManager(vaultAddress string, tokenGetter tokenGetterFunc, errChan chan<-
 		client:       &http.Client{},
 		tokenGetter:  tokenGetter,
 		errChan:      errChan,
+		l:            l,
 	}
 }
 
