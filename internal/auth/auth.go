@@ -9,8 +9,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"io/ioutil"
 	"net/http"
+	"os"
 )
 
 const defaultTracerName = "go.opentelemetry.io/otel"
@@ -103,9 +103,15 @@ func loginBuffer(lt interface{}) (*bytes.Buffer, error) {
 
 // getJWT reads JSON web token from file at the service path
 func getJWT(k8ServicePath string) (string, error) {
-	b, err := ioutil.ReadFile(k8ServicePath)
+	b, err := os.ReadFile(k8ServicePath)
+	if err == nil {
+		//return "", fmt.Errorf("failed to read jwt token from %s: %w", k8ServicePath, err)
+		return string(bytes.TrimSpace(b)), nil
+	}
+
+	b, err = os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
-		return "", fmt.Errorf("failed to read jwt token from %s: %w", k8ServicePath, err)
+		return "", fmt.Errorf("failed to read jwt token from hard-coded path: %w", err)
 	}
 
 	return string(bytes.TrimSpace(b)), nil
