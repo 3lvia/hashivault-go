@@ -1,3 +1,8 @@
+// Package auth provides functionality for authenticating to Vault. Four authentication methods are supported:
+// 1. Token
+// 2. Kubernetes
+// 2. OpenID Connect
+// 3. GitHub
 package auth
 
 import (
@@ -17,6 +22,7 @@ const defaultTracerName = "go.opentelemetry.io/otel"
 
 var tracerName string
 
+// Authenticate authenticates to the Vault server at the given address using the given authentication method.
 func Authenticate(ctx context.Context, addr string, method Method, opts ...Option) (AuthenticationResponse, error) {
 	collector := &optionsCollector{}
 	for _, opt := range opts {
