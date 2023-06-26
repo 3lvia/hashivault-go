@@ -112,3 +112,6 @@ type authenticationData struct {
 	MFARequirement interface{}            `json:"mfa_requirement"`
 	NumUses        int                    `json:"num_uses"`
 }
+
+// FileReaderFunc is a function that reads a file and returns the contents as a byte slice.
+type FileReaderFunc func(name string) ([]byte, error)

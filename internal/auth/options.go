@@ -15,6 +15,7 @@ type optionsCollector struct {
 
 	l              *log.Logger
 	otelTracerName string
+	fileReader     FileReaderFunc
 }
 
 // Option is a function that provides ab optional configuration for this package.
@@ -54,5 +55,14 @@ func WithLogger(l *log.Logger) Option {
 func WithOtelTracerName(name string) Option {
 	return func(o *optionsCollector) {
 		o.otelTracerName = name
+	}
+}
+
+// WithFileReader sets the file reader to use for reading files. The file in question is the Kubernetes service account
+// token file when authenticating using the workflow for Kubernetes. If not set, the default file reader is used. This
+// option is mainly intended for testing.
+func WithFileReader(reader FileReaderFunc) Option {
+	return func(o *optionsCollector) {
+		o.fileReader = reader
 	}
 }
