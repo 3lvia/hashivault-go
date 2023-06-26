@@ -56,6 +56,8 @@ func (m *manager) GetSecret(ctx context.Context, path string) (EvergreenSecretsF
 }
 
 func (m *manager) SetDefaultGoogleCredentials(ctx context.Context, path, key string) error {
+	m.l.Print("setting default google credentials")
+
 	s, err := m.GetSecret(ctx, path)
 	if err != nil {
 		return err
@@ -83,6 +85,8 @@ func (m *manager) SetDefaultGoogleCredentials(ctx context.Context, path, key str
 	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", fn); err != nil {
 		return err
 	}
+
+	m.l.Printf("set default google credentials to %s", fn)
 
 	return nil
 }
