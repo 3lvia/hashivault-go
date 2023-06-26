@@ -1,3 +1,8 @@
+// Package auth provides functionality for authenticating to Vault. Four authentication methods are supported:
+// 1. Token
+// 2. Kubernetes
+// 2. OpenID Connect
+// 3. GitHub
 package auth
 
 import (
@@ -16,7 +21,9 @@ import (
 const defaultTracerName = "go.opentelemetry.io/otel"
 
 var tracerName string
+var currentFileReader FileReaderFunc
 
+// Authenticate authenticates to the Vault server at the given address using the given authentication method.
 func Authenticate(ctx context.Context, addr string, method Method, opts ...Option) (AuthenticationResponse, error) {
 	collector := &optionsCollector{}
 	for _, opt := range opts {
@@ -30,6 +37,11 @@ func Authenticate(ctx context.Context, addr string, method Method, opts ...Optio
 
 	l := collector.l
 	l.Printf("authenticating to %s using %s", addr, methodToString(method))
+
+	currentFileReader = collector.fileReader
+	if currentFileReader == nil {
+		currentFileReader = os.ReadFile
+	}
 
 	tracer := otel.GetTracerProvider().Tracer(tracerName)
 	spanCtx, span := tracer.Start(
@@ -103,13 +115,13 @@ func loginBuffer(lt interface{}) (*bytes.Buffer, error) {
 
 // getJWT reads JSON web token from file at the service path
 func getJWT(k8ServicePath string) (string, error) {
-	b, err := os.ReadFile(k8ServicePath)
+	b, err := currentFileReader(k8ServicePath)
 	if err == nil {
 		//return "", fmt.Errorf("failed to read jwt token from %s: %w", k8ServicePath, err)
 		return string(bytes.TrimSpace(b)), nil
 	}
 
-	b, err = os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+	b, err = currentFileReader("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
 		return "", fmt.Errorf("failed to read jwt token from hard-coded path: %w", err)
 	}

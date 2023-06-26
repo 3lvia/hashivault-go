@@ -7,7 +7,7 @@ type Method int
 
 const (
 	_ Method = iota // skip 0
-	// MethodGitHub is the authentication method where GitHub tokens are used to autenticate the user.
+	// MethodGitHub is the authentication method where GitHub tokens are used to authenticate the user.
 	MethodGitHub Method = iota
 
 	// MethodK8s is the authentication method where Kubernetes service accounts are used to authenticate the user.
@@ -57,7 +57,7 @@ type AuthenticationResponse interface {
 	// Renewable is true if the token is renewable.
 	Renewable() bool
 
-	// After returns a channel that fire when the token is about to expire. The channel will fire when the token has
+	// After returns a channel that fires when the token is about to expire. The channel will fire when the token has
 	// 30 seconds left to live.
 	After() <-chan time.Time
 }
@@ -112,3 +112,6 @@ type authenticationData struct {
 	MFARequirement interface{}            `json:"mfa_requirement"`
 	NumUses        int                    `json:"num_uses"`
 }
+
+// FileReaderFunc is a function that reads a file and returns the contents as a byte slice.
+type FileReaderFunc func(name string) ([]byte, error)
