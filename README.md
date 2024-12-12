@@ -1,5 +1,9 @@
+# ARCHIVED
+
+Moved to [libraries-go](https://github.com/3lvia/libraries-go/tree/trunk/pkg/hashivault).
+
 # hashivault-go
-Provides a Vault client for the Hashicorp Vault secrets management solution. See the golang documentation for more 
+Provides a Vault client for the Hashicorp Vault secrets management solution. See the golang documentation for more
 information (specifically ./pkg/hashivault/doc.go).
 
 ## Generated documentation
